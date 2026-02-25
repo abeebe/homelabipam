@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Network {
+  id          String   @id @default(uuid())
+  name        String
+  vlanId      Int?
+  cidr        String
+  gateway     String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ipAddresses IPAddress[]
+}
+
+model IPAddress {
+  id          String   @id @default(uuid())
+  address     String
+  status      IPStatus @default(AVAILABLE)
+  description String?
+
+  networkId   String
+  network     Network  @relation(fields: [networkId], references: [id])
+
+  device      Device?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([address, networkId])
+}
+
+model Device {
+  id         String   @id @default(uuid())
+  name       String
+  macAddress String?  @unique
+  hostname   String?
+  vendor     String?
+  source     DeviceSource @default(MANUAL)
+  lastSeen   DateTime?
+
+  ipAddressId String?  @unique
+  ipAddress   IPAddress? @relation(fields: [ipAddressId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum IPStatus {
+  AVAILABLE
+  RESERVED
+  IN_USE
+}
+
+enum DeviceSource {
+  MANUAL
+  UNIFI
+  PROXMOX
+}
