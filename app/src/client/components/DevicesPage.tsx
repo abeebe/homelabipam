@@ -118,7 +118,12 @@ export default function DevicesPage() {
 
       {lastSync && (
         <div className="sync-result">
-          Last sync: {lastSync.synced} devices synced from {lastSync.sites} site(s)
+          Last sync from {lastSync.sites} site(s) —{' '}
+          {lastSync.networks.created > 0 && <span>{lastSync.networks.created} networks created, </span>}
+          {lastSync.networks.updated > 0 && <span>{lastSync.networks.updated} networks updated, </span>}
+          {lastSync.ipAddresses.created > 0 && <span>{lastSync.ipAddresses.created} IPs added, </span>}
+          {lastSync.ipAddresses.updated > 0 && <span>{lastSync.ipAddresses.updated} IPs updated, </span>}
+          {lastSync.devices.synced} devices synced
           {lastSync.errors.length > 0 && (
             <span className="text-muted"> ({lastSync.errors.length} error{lastSync.errors.length !== 1 ? 's' : ''})</span>
           )}
