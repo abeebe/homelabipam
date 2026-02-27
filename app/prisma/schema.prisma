@@ -63,3 +63,20 @@ enum DeviceSource {
   UNIFI
   PROXMOX
 }
+
+model Setting {
+  key       String   @id
+  value     String?
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  entityType String
+  entityId   String?
+  entityName String?
+  changes    String?
+  source     String   @default("USER")
+  createdAt  DateTime @default(now())
+}

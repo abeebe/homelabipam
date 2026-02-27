@@ -4,6 +4,8 @@ import Dashboard from './components/Dashboard'
 import NetworkList from './components/NetworkList'
 import IPAddressList from './components/IPAddressList'
 import DevicesPage from './components/DevicesPage'
+import SettingsPage from './components/SettingsPage'
+import AuditLogPage from './components/AuditLogPage'
 import './styles.css'
 
 export default function App() {
@@ -15,6 +17,8 @@ export default function App() {
           <Route path="/networks" element={<NetworkList />} />
           <Route path="/ips" element={<IPAddressList />} />
           <Route path="/devices" element={<DevicesPage />} />
+          <Route path="/auditlog" element={<AuditLogPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </Layout>
     </BrowserRouter>

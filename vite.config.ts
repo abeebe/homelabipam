@@ -16,13 +16,14 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    host: '0.0.0.0',
     proxy: {
       "/api": {
         target: "http://localhost:3000",
         changeOrigin: true,
         bypass(req) {
-          // Don't proxy TypeScript/JavaScript files
-          if (req.url.match(/\.(ts|tsx|js|jsx)$/)) {
+          // Don't proxy TypeScript/JavaScript source files (handle query params like ?t=timestamp)
+          if (req.url.match(/\.(ts|tsx|js|jsx)(\?|$)/)) {
             return req.url
           }
         }
