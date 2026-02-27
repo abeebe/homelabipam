@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { networksAPI, APIError } from '../api'
+import { Network } from '../types'
 
 interface CreateNetworkFormProps {
   onSuccess: () => void
@@ -13,36 +14,55 @@ export default function CreateNetworkForm({ onSuccess }: CreateNetworkFormProps)
     vlanId: '',
     description: ''
   })
+  const [populateSubnet, setPopulateSubnet] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [populateResult, setPopulateResult] = useState<{ created: number; total: number } | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  /** Quick CIDR prefix check to warn if populate is requested on a large subnet */
+  function getPrefix(cidr: string): number {
+    const parts = cidr.split('/')
+    return parts.length === 2 ? parseInt(parts[1]) : 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setPopulateResult(null)
 
     if (!formData.name.trim() || !formData.cidr.trim()) {
       setError('Name and CIDR are required')
       return
     }
 
+    if (populateSubnet && getPrefix(formData.cidr) < 20) {
+      setError('Auto-populate is only allowed for /20 or smaller networks (max 4094 hosts)')
+      return
+    }
+
     try {
       setLoading(true)
-      await networksAPI.create({
+      const network: Network = await networksAPI.create({
         name: formData.name,
         cidr: formData.cidr,
         gateway: formData.gateway || null,
         vlanId: formData.vlanId ? parseInt(formData.vlanId) : null,
         description: formData.description || null
       })
-      onSuccess()
+
+      if (populateSubnet) {
+        const result = await networksAPI.populate(network.id)
+        setPopulateResult({ created: result.created, total: result.total })
+        // Give user a moment to see the result before closing
+        setTimeout(() => onSuccess(), 1500)
+      } else {
+        onSuccess()
+      }
     } catch (err) {
       if (err instanceof APIError) {
         setError(`Error: ${err.message}`)
@@ -59,6 +79,11 @@ export default function CreateNetworkForm({ onSuccess }: CreateNetworkFormProps)
       <h3>Create New Network</h3>
 
       {error && <div className="error-message">{error}</div>}
+      {populateResult && (
+        <div className="populate-result-banner">
+          ✓ Network created — {populateResult.created} IPs added ({populateResult.total} total host addresses)
+        </div>
+      )}
 
       <div className="form-group">
         <label htmlFor="name">Network Name *</label>
@@ -124,9 +149,23 @@ export default function CreateNetworkForm({ onSuccess }: CreateNetworkFormProps)
         />
       </div>
 
+      <div className="form-option-row">
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={populateSubnet}
+            onChange={e => setPopulateSubnet(e.target.checked)}
+          />
+          <span>Auto-populate all host IPs as AVAILABLE</span>
+          <span className="option-hint">(requires /20 or smaller)</span>
+        </label>
+      </div>
+
       <div className="form-actions">
         <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Creating...' : 'Create Network'}
+          {loading
+            ? (populateSubnet ? 'Creating & populating…' : 'Creating...')
+            : 'Create Network'}
         </button>
       </div>
     </form>

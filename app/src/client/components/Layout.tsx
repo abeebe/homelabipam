@@ -22,6 +22,7 @@ export default function Layout({ children }: LayoutProps) {
             <span className="nav-icon">◈</span>
             Dashboard
           </NavLink>
+
           <span className="sidebar-section">Management</span>
           <NavLink to="/networks" className={navClass}>
             <span className="nav-icon">⬡</span>
@@ -35,6 +36,13 @@ export default function Layout({ children }: LayoutProps) {
             <span className="nav-icon">▣</span>
             Devices
           </NavLink>
+
+          <span className="sidebar-section">System</span>
+          <NavLink to="/auditlog" className={navClass}>
+            <span className="nav-icon">📋</span>
+            Audit Log
+          </NavLink>
+
           <div className="sidebar-spacer" />
           <NavLink to="/settings" className={navClass}>
             <span className="nav-icon">⚙</span>

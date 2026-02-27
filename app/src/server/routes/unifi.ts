@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../prisma'
 import { testConnection, getSites, getClients, getDevices, getNetworks } from '../utils/unifi'
+import { writeAudit } from '../utils/audit'
 
 const router = Router()
 
@@ -212,6 +213,20 @@ router.post('/sync', async (_req, res) => {
         }
       }
     }
+
+    await writeAudit({
+      action: 'SYNC',
+      entityType: 'Device',
+      entityName: `UniFi sync — ${results.sites} site(s)`,
+      source: 'SYSTEM',
+      changes: {
+        networks: results.networks,
+        ipAddresses: results.ipAddresses,
+        devices: results.devices,
+        reconciled: results.reconciled,
+        errors: results.errors.length,
+      },
+    })
 
     res.json(results)
   } catch (err: any) {

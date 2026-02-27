@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../prisma'
+import { writeAudit } from '../utils/audit'
 
 const router = Router()
 
@@ -7,9 +8,7 @@ const router = Router()
 router.get('/', async (_, res) => {
   try {
     const networks = await prisma.network.findMany({
-      include: {
-        ipAddresses: true
-      }
+      include: { ipAddresses: true }
     })
     res.json(networks)
   } catch (error: any) {
@@ -23,17 +22,9 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params
     const network = await prisma.network.findUnique({
       where: { id },
-      include: {
-        ipAddresses: {
-          include: { device: true }
-        }
-      }
+      include: { ipAddresses: { include: { device: true } } }
     })
-
-    if (!network) {
-      return res.status(404).json({ error: 'Network not found' })
-    }
-
+    if (!network) return res.status(404).json({ error: 'Network not found' })
     res.json(network)
   } catch (error: any) {
     res.status(500).json({ error: error.message })
@@ -44,10 +35,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { name, vlanId, cidr, gateway, description } = req.body
-
-    if (!name || !cidr) {
-      return res.status(400).json({ error: 'Name and CIDR are required' })
-    }
+    if (!name || !cidr) return res.status(400).json({ error: 'Name and CIDR are required' })
 
     const network = await prisma.network.create({
       data: {
@@ -57,6 +45,14 @@ router.post('/', async (req, res) => {
         gateway,
         description
       }
+    })
+
+    await writeAudit({
+      action: 'CREATE',
+      entityType: 'Network',
+      entityId: network.id,
+      entityName: `${name} (${cidr})`,
+      changes: { name, cidr, gateway, vlanId: vlanId ?? null, description: description ?? null },
     })
 
     res.status(201).json(network)
@@ -71,6 +67,9 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params
     const { name, vlanId, cidr, gateway, description } = req.body
 
+    // Fetch before for change tracking
+    const before = await prisma.network.findUnique({ where: { id } })
+
     const network = await prisma.network.update({
       where: { id },
       data: {
@@ -80,16 +79,29 @@ router.put('/:id', async (req, res) => {
         ...(gateway !== undefined && { gateway }),
         ...(description !== undefined && { description })
       },
-      include: {
-        ipAddresses: true
-      }
+      include: { ipAddresses: true }
+    })
+
+    const changes: Record<string, unknown> = {}
+    if (before) {
+      if (name && name !== before.name) changes.name = { from: before.name, to: name }
+      if (cidr && cidr !== before.cidr) changes.cidr = { from: before.cidr, to: cidr }
+      if (gateway !== undefined && gateway !== before.gateway) changes.gateway = { from: before.gateway, to: gateway }
+      if (vlanId !== undefined && vlanId !== before.vlanId) changes.vlanId = { from: before.vlanId, to: vlanId }
+      if (description !== undefined && description !== before.description) changes.description = { from: before.description, to: description }
+    }
+
+    await writeAudit({
+      action: 'UPDATE',
+      entityType: 'Network',
+      entityId: id,
+      entityName: `${network.name} (${network.cidr})`,
+      changes,
     })
 
     res.json(network)
   } catch (error: any) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Network not found' })
-    }
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Network not found' })
     res.status(500).json({ error: error.message })
   }
 })
@@ -105,10 +117,8 @@ router.post('/:id/populate', async (req, res) => {
     const prefix = parseInt(prefixStr)
     if (prefix < 20) return res.status(400).json({ error: 'Network too large to auto-populate (use /20 or smaller)' })
 
-    const ipToNum = (ip: string) =>
-      ip.split('.').reduce((acc: number, o: string) => (acc * 256) + parseInt(o), 0)
-    const numToIP = (n: number) =>
-      [(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff].join('.')
+    const ipToNum = (ip: string) => ip.split('.').reduce((acc: number, o: string) => (acc * 256) + parseInt(o), 0)
+    const numToIP = (n: number) => [(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff].join('.')
 
     const mask = (~0 << (32 - prefix)) >>> 0
     const networkNum = (ipToNum(ipStr) & mask) >>> 0
@@ -116,14 +126,9 @@ router.post('/:id/populate', async (req, res) => {
     const first = networkNum + 1
     const last = broadcast - 1
 
-    // Fetch existing IPs in one query
-    const existing = await prisma.iPAddress.findMany({
-      where: { networkId: id },
-      select: { address: true },
-    })
+    const existing = await prisma.iPAddress.findMany({ where: { networkId: id }, select: { address: true } })
     const existingSet = new Set(existing.map(ip => ip.address))
 
-    // Build list of missing host IPs
     const toCreate: { address: string; networkId: string; status: 'AVAILABLE' }[] = []
     for (let i = first; i <= last; i++) {
       const address = numToIP(i)
@@ -136,6 +141,14 @@ router.post('/:id/populate', async (req, res) => {
       await prisma.iPAddress.createMany({ data: toCreate })
     }
 
+    await writeAudit({
+      action: 'POPULATE',
+      entityType: 'Network',
+      entityId: id,
+      entityName: `${network.name} (${network.cidr})`,
+      changes: { created: toCreate.length, existing: existingSet.size, total: last - first + 1 },
+    })
+
     res.json({ created: toCreate.length, existing: existingSet.size, total: last - first + 1 })
   } catch (err: any) {
     res.status(500).json({ error: err.message })
@@ -147,15 +160,38 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params
 
-    await prisma.network.delete({
-      where: { id }
+    // Fetch before deletion for audit name
+    const network = await prisma.network.findUnique({ where: { id } })
+
+    // Delete in dependency order to satisfy FK constraints:
+    // 1. Unlink devices from IPs in this network (keep devices, just remove IP assignment)
+    // 2. Delete all IPs in the network
+    // 3. Delete the network itself
+    const ips = await prisma.iPAddress.findMany({
+      where: { networkId: id },
+      select: { id: true },
+    })
+    if (ips.length > 0) {
+      const ipIds = ips.map(ip => ip.id)
+      await prisma.device.updateMany({
+        where: { ipAddressId: { in: ipIds } },
+        data: { ipAddressId: null },
+      })
+      await prisma.iPAddress.deleteMany({ where: { networkId: id } })
+    }
+
+    await prisma.network.delete({ where: { id } })
+
+    await writeAudit({
+      action: 'DELETE',
+      entityType: 'Network',
+      entityId: id,
+      entityName: network ? `${network.name} (${network.cidr})` : id,
     })
 
     res.status(204).send()
   } catch (error: any) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Network not found' })
-    }
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Network not found' })
     res.status(500).json({ error: error.message })
   }
 })

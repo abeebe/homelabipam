@@ -35,3 +35,14 @@ export interface Device {
   createdAt: string
   updatedAt: string
 }
+
+export interface AuditLogEntry {
+  id: string
+  action: string
+  entityType: string
+  entityId: string | null
+  entityName: string | null
+  changes: string | null
+  source: string
+  createdAt: string
+}

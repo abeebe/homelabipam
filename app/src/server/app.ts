@@ -6,6 +6,7 @@ import networksRoutes from "./routes/networks"
 import ipaddressesRoutes from "./routes/ipaddresses"
 import unifiRoutes from "./routes/unifi"
 import settingsRoutes from "./routes/settings"
+import auditLogRoutes from "./routes/auditlog"
 
 export function createApp() {
   const app = express()
@@ -18,6 +19,7 @@ export function createApp() {
   app.use("/api/ipaddresses", ipaddressesRoutes)
   app.use("/api/unifi", unifiRoutes)
   app.use("/api/settings", settingsRoutes)
+  app.use("/api/auditlog", auditLogRoutes)
 
   // Error handling middleware
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

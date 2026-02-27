@@ -1,4 +1,4 @@
-import { Network, IPAddress, Device } from './types'
+import { Network, IPAddress, Device, AuditLogEntry } from './types'
 
 const API_BASE = '/api'
 
@@ -77,6 +77,20 @@ export const settingsAPI = {
   getAll: () => request<Record<string, string>>('/settings'),
   update: (data: Record<string, string>) =>
     request<{ ok: boolean }>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
+}
+
+// Audit Log API
+export const auditLogAPI = {
+  getAll: (params?: { page?: number; limit?: number; entityType?: string; action?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.limit) qs.set('limit', String(params.limit))
+    if (params?.entityType) qs.set('entityType', params.entityType)
+    if (params?.action) qs.set('action', params.action)
+    return request<{ total: number; page: number; limit: number; logs: AuditLogEntry[] }>(
+      `/auditlog?${qs.toString()}`
+    )
+  },
 }
 
 export { APIError }

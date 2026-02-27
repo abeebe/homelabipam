@@ -1,10 +1,11 @@
 import { Router } from 'express'
 import { prisma } from '../prisma'
+import { writeAudit } from '../utils/audit'
 
 const router = Router()
 
 // Keys whose values are masked in GET responses
-const SENSITIVE_KEYS = new Set(['UNIFI_API_KEY', 'PROXMOX_TOKEN_SECRET'])
+const SENSITIVE_KEYS = new Set(['UNIFI_API_KEY', 'PROXMOX_TOKEN_SECRET', 'PIHOLE_API_KEY', 'ADGUARD_PASSWORD', 'PORTAINER_API_KEY'])
 const PLACEHOLDER = '***'
 
 // All known setting keys with their env var fallback names
@@ -14,6 +15,13 @@ const ENV_FALLBACKS: Record<string, string[]> = {
   PROXMOX_URL: ['PROXMOX_URL'],
   PROXMOX_TOKEN_ID: ['PROXMOX_TOKEN_ID'],
   PROXMOX_TOKEN_SECRET: ['PROXMOX_TOKEN_SECRET'],
+  PIHOLE_URL: ['PIHOLE_URL'],
+  PIHOLE_API_KEY: ['PIHOLE_API_KEY'],
+  ADGUARD_URL: ['ADGUARD_URL'],
+  ADGUARD_PASSWORD: ['ADGUARD_PASSWORD'],
+  DOCKER_URL: ['DOCKER_URL'],
+  PORTAINER_URL: ['PORTAINER_URL'],
+  PORTAINER_API_KEY: ['PORTAINER_API_KEY'],
 }
 
 function getEnvFallback(key: string): string {
@@ -32,9 +40,7 @@ router.get('/', async (_, res) => {
     const stored = Object.fromEntries(rows.map(r => [r.key, r.value ?? '']))
 
     const result: Record<string, string> = {}
-
     for (const key of Object.keys(ENV_FALLBACKS)) {
-      // DB value takes precedence over env fallback
       const raw = stored[key] !== undefined ? stored[key] : getEnvFallback(key)
       result[key] = SENSITIVE_KEYS.has(key) && raw ? PLACEHOLDER : raw
     }
@@ -49,15 +55,25 @@ router.get('/', async (_, res) => {
 router.put('/', async (req, res) => {
   try {
     const updates = req.body as Record<string, string>
+    const changed: string[] = []
 
     for (const [key, value] of Object.entries(updates)) {
-      // Skip if user left a sensitive field unchanged (still shows PLACEHOLDER)
       if (SENSITIVE_KEYS.has(key) && value === PLACEHOLDER) continue
 
       await prisma.setting.upsert({
         where: { key },
         create: { key, value: value || null },
         update: { value: value || null },
+      })
+      changed.push(key)
+    }
+
+    if (changed.length > 0) {
+      await writeAudit({
+        action: 'UPDATE',
+        entityType: 'Setting',
+        entityName: changed.join(', '),
+        changes: { updatedKeys: changed },
       })
     }
 
