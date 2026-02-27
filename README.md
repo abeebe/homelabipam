@@ -20,7 +20,7 @@ A self-hosted IP Address Management tool built for homelabs. Track networks, VLA
 The fastest way to run the full stack. No local Node or PostgreSQL required.
 
 ```bash
-git clone [https://github.com/abeebe/homelabipam](https://github.com/abeebe/homelabipam)
+git clone https://github.com/abeebe/homelabipam
 cd ipam
 docker-compose up
 ```
