@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios'
 import https from 'https'
+import { prisma } from '../prisma'
 
 // UniFi Network Integration API v1
 // Docs: /proxy/network/integration/v1
@@ -35,13 +36,23 @@ export interface UnifiNetwork {
   enabled: boolean
 }
 
-function createClient(): AxiosInstance {
-  const baseURL = process.env.UNIFI_URL
-  // Support both UNIFI_API_KEY and the legacy UNIFI-X-APIKEY variable name
-  const apiKey = process.env.UNIFI_API_KEY || process.env['UNIFI-X-APIKEY']
+async function getConfig(): Promise<{ url: string; apiKey: string }> {
+  const rows = await prisma.setting.findMany({
+    where: { key: { in: ['UNIFI_URL', 'UNIFI_API_KEY'] } },
+  })
+  const map = Object.fromEntries(rows.map(r => [r.key, r.value ?? '']))
 
-  if (!baseURL) throw new Error('UNIFI_URL is not set')
-  if (!apiKey) throw new Error('UNIFI_API_KEY is not set')
+  return {
+    url: map['UNIFI_URL'] || process.env.UNIFI_URL || '',
+    apiKey: map['UNIFI_API_KEY'] || process.env.UNIFI_API_KEY || process.env['UNIFI-X-APIKEY'] || '',
+  }
+}
+
+async function createClient(): Promise<AxiosInstance> {
+  const { url: baseURL, apiKey } = await getConfig()
+
+  if (!baseURL) throw new Error('UNIFI_URL is not configured. Set it in Settings.')
+  if (!apiKey) throw new Error('UNIFI_API_KEY is not configured. Set it in Settings.')
 
   return axios.create({
     baseURL,
@@ -71,19 +82,19 @@ async function fetchAllPages<T>(
 }
 
 export async function getSites(): Promise<UnifiSite[]> {
-  const client = createClient()
+  const client = await createClient()
   const res = await client.get('/proxy/network/integration/v1/sites')
   return res.data.data ?? res.data
 }
 
 export async function getNetworks(siteId: string): Promise<UnifiNetwork[]> {
-  const client = createClient()
+  const client = await createClient()
   const res = await client.get(`/proxy/network/integration/v1/sites/${siteId}/networks`)
   return res.data.data ?? res.data
 }
 
 export async function getClients(siteId: string): Promise<UnifiClient[]> {
-  const client = createClient()
+  const client = await createClient()
   return fetchAllPages(async (offset, limit) => {
     const res = await client.get(`/proxy/network/integration/v1/sites/${siteId}/clients`, {
       params: { offset, limit },
@@ -93,7 +104,7 @@ export async function getClients(siteId: string): Promise<UnifiClient[]> {
 }
 
 export async function getDevices(siteId: string): Promise<UnifiDevice[]> {
-  const client = createClient()
+  const client = await createClient()
   return fetchAllPages(async (offset, limit) => {
     const res = await client.get(`/proxy/network/integration/v1/sites/${siteId}/devices`, {
       params: { offset, limit },
@@ -103,11 +114,12 @@ export async function getDevices(siteId: string): Promise<UnifiDevice[]> {
 }
 
 export async function testConnection(): Promise<{ connected: boolean; url: string; siteCount?: number; error?: string }> {
-  const url = process.env.UNIFI_URL || 'not set'
+  const { url } = await getConfig()
+  const displayUrl = url || 'not configured'
   try {
     const sites = await getSites()
-    return { connected: true, url, siteCount: sites.length }
+    return { connected: true, url: displayUrl, siteCount: sites.length }
   } catch (err: any) {
-    return { connected: false, url, error: err.message }
+    return { connected: false, url: displayUrl, error: err.message }
   }
 }

@@ -63,3 +63,9 @@ enum DeviceSource {
   UNIFI
   PROXMOX
 }
+
+model Setting {
+  key       String   @id
+  value     String?
+  updatedAt DateTime @updatedAt
+}

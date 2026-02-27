@@ -4,7 +4,7 @@ import { testConnection, getSites, getClients, getDevices, getNetworks } from '.
 
 const router = Router()
 
-// GET /api/unifi/status - Check connection to UniFi controller
+// GET /api/unifi/status
 router.get('/status', async (_req, res) => {
   try {
     const result = await testConnection()
@@ -14,7 +14,7 @@ router.get('/status', async (_req, res) => {
   }
 })
 
-// GET /api/unifi/sites - List UniFi sites
+// GET /api/unifi/sites
 router.get('/sites', async (_req, res) => {
   try {
     const sites = await getSites()
@@ -24,116 +24,61 @@ router.get('/sites', async (_req, res) => {
   }
 })
 
-// POST /api/unifi/discover - Discover devices from all sites and sync to DB
+// POST /api/unifi/discover
 router.post('/discover', async (_req, res) => {
-  const results = {
-    sites: 0,
-    discovered: 0,
-    synced: 0,
-    errors: [] as string[],
-  }
-
+  const results = { sites: 0, discovered: 0, synced: 0, errors: [] as string[] }
   try {
     const sites = await getSites()
     results.sites = sites.length
-
     for (const site of sites) {
-      // Fetch both managed devices (APs/switches) and connected clients
       let clients: Awaited<ReturnType<typeof getClients>> = []
       let devices: Awaited<ReturnType<typeof getDevices>> = []
-
       try {
-        [clients, devices] = await Promise.all([
-          getClients(site.id),
-          getDevices(site.id),
-        ])
+        [clients, devices] = await Promise.all([getClients(site.id), getDevices(site.id)])
       } catch (err: any) {
         results.errors.push(`Site ${site.name}: ${err.message}`)
         continue
       }
-
-      // Combine: clients are end-user devices, devices are APs/switches
       const allEntries = [
-        ...clients.map(c => ({
-          mac: c.macAddress?.toLowerCase(),
-          ip: c.ipAddress,
-          name: c.name || c.macAddress,
-          hostname: undefined as string | undefined,
-          vendor: undefined as string | undefined,
-          lastSeen: c.connectedAt ? new Date(c.connectedAt).getTime() / 1000 : undefined,
-        })),
-        ...devices.map(d => ({
-          mac: d.macAddress?.toLowerCase(),
-          ip: d.ipAddress,
-          name: d.name || d.model || d.macAddress,
-          hostname: undefined as string | undefined,
-          vendor: d.model,
-          lastSeen: undefined as number | undefined,
-        })),
+        ...clients.map(c => ({ mac: c.macAddress?.toLowerCase(), ip: c.ipAddress, name: c.name || c.macAddress, vendor: undefined as string | undefined, lastSeen: c.connectedAt ? new Date(c.connectedAt).getTime() / 1000 : undefined })),
+        ...devices.map(d => ({ mac: d.macAddress?.toLowerCase(), ip: d.ipAddress, name: d.name || d.model || d.macAddress, vendor: d.model, lastSeen: undefined as number | undefined })),
       ].filter(e => e.mac)
-
       results.discovered += allEntries.length
-
       for (const entry of allEntries) {
         try {
-          // Find existing IP address record if we have an IP
           let ipAddressId: string | null = null
           if (entry.ip) {
-            const ipRecord = await prisma.iPAddress.findFirst({
-              where: { address: entry.ip },
-            })
+            const ipRecord = await prisma.iPAddress.findFirst({ where: { address: entry.ip } })
             if (ipRecord) {
               ipAddressId = ipRecord.id
-              // Mark IP as in use
-              await prisma.iPAddress.update({
-                where: { id: ipRecord.id },
-                data: { status: 'IN_USE' },
-              })
+              await prisma.iPAddress.update({ where: { id: ipRecord.id }, data: { status: 'IN_USE' } })
             }
           }
-
-          // Upsert device by MAC address
           await prisma.device.upsert({
             where: { macAddress: entry.mac },
-            create: {
-              name: entry.name,
-              macAddress: entry.mac,
-              hostname: entry.hostname ?? null,
-              vendor: entry.vendor ?? null,
-              source: 'UNIFI',
-              lastSeen: entry.lastSeen ? new Date(entry.lastSeen * 1000) : new Date(),
-              ipAddressId,
-            },
-            update: {
-              name: entry.name,
-              hostname: entry.hostname ?? null,
-              vendor: entry.vendor ?? null,
-              source: 'UNIFI',
-              lastSeen: entry.lastSeen ? new Date(entry.lastSeen * 1000) : new Date(),
-              ...(ipAddressId && { ipAddressId }),
-            },
+            create: { name: entry.name, macAddress: entry.mac, vendor: entry.vendor ?? null, source: 'UNIFI', lastSeen: entry.lastSeen ? new Date(entry.lastSeen * 1000) : new Date(), ipAddressId },
+            update: { name: entry.name, vendor: entry.vendor ?? null, source: 'UNIFI', lastSeen: entry.lastSeen ? new Date(entry.lastSeen * 1000) : new Date(), ...(ipAddressId && { ipAddressId }) },
           })
-
           results.synced++
         } catch (err: any) {
           results.errors.push(`Device ${entry.mac}: ${err.message}`)
         }
       }
     }
-
     res.json(results)
   } catch (err: any) {
     res.status(503).json({ error: `Failed to reach UniFi controller: ${err.message}`, results })
   }
 })
 
-// POST /api/unifi/sync - Full sync: networks, IP addresses, and devices
+// POST /api/unifi/sync - Full sync with reconciliation
 router.post('/sync', async (_req, res) => {
   const results = {
     sites: 0,
     networks: { created: 0, updated: 0 },
     ipAddresses: { created: 0, updated: 0 },
     devices: { synced: 0 },
+    reconciled: 0,
     errors: [] as string[],
   }
 
@@ -157,13 +102,14 @@ router.post('/sync', async (_req, res) => {
         continue
       }
 
-      // Collect all IPs from clients + devices (private IPs only)
+      // All IPs seen in this sync (private only)
       const allIPs = [
         ...clients.filter(c => c.ipAddress).map(c => ({ mac: c.macAddress?.toLowerCase(), ip: c.ipAddress! })),
         ...devices.filter(d => d.ipAddress && !d.ipAddress.startsWith('73.')).map(d => ({ mac: d.macAddress?.toLowerCase(), ip: d.ipAddress! })),
       ]
+      const seenIPSet = new Set(allIPs.map(e => e.ip))
 
-      // Group into /24 subnets: "10.10.1" -> [ips...]
+      // Group into /24 subnets
       const subnetGroups = new Map<string, typeof allIPs>()
       for (const entry of allIPs) {
         const prefix = entry.ip.split('.').slice(0, 3).join('.')
@@ -171,17 +117,15 @@ router.post('/sync', async (_req, res) => {
         subnetGroups.get(prefix)!.push(entry)
       }
 
-      // Upsert networks and build prefix -> DB network ID map
+      // Upsert networks
       const prefixToNetworkId = new Map<string, string>()
-
-      for (const [prefix, _] of subnetGroups) {
+      for (const [prefix] of subnetGroups) {
         const cidr = `${prefix}.0/24`
         const gateway = `${prefix}.1`
         const thirdOctet = parseInt(prefix.split('.')[2])
         const matched = unifiNetworks.find(n => n.vlanId === thirdOctet)
         const name = matched?.name ?? cidr
         const vlanId = matched?.vlanId ?? null
-
         try {
           let network = await prisma.network.findFirst({ where: { cidr } })
           if (!network) {
@@ -197,12 +141,11 @@ router.post('/sync', async (_req, res) => {
         }
       }
 
-      // Upsert IP addresses and link to devices
+      // Upsert IP addresses
       for (const { mac, ip } of allIPs) {
         const prefix = ip.split('.').slice(0, 3).join('.')
         const networkId = prefixToNetworkId.get(prefix)
         if (!networkId) continue
-
         try {
           let ipRecord = await prisma.iPAddress.findFirst({ where: { address: ip } })
           if (!ipRecord) {
@@ -212,8 +155,6 @@ router.post('/sync', async (_req, res) => {
             ipRecord = await prisma.iPAddress.update({ where: { id: ipRecord.id }, data: { status: 'IN_USE', networkId } })
             results.ipAddresses.updated++
           }
-
-          // Link to device if we have a matching MAC
           if (mac) {
             const device = await prisma.device.findUnique({ where: { macAddress: mac } })
             if (device && device.ipAddressId !== ipRecord.id) {
@@ -225,22 +166,10 @@ router.post('/sync', async (_req, res) => {
         }
       }
 
-      // Sync devices (upsert by MAC)
+      // Upsert devices
       const allEntries = [
-        ...clients.map(c => ({
-          mac: c.macAddress?.toLowerCase(),
-          ip: c.ipAddress,
-          name: c.name || c.macAddress,
-          vendor: undefined as string | undefined,
-          lastSeen: c.connectedAt ? new Date(c.connectedAt).getTime() / 1000 : undefined,
-        })),
-        ...devices.map(d => ({
-          mac: d.macAddress?.toLowerCase(),
-          ip: d.ipAddress,
-          name: d.name || d.model || d.macAddress,
-          vendor: d.model,
-          lastSeen: undefined as number | undefined,
-        })),
+        ...clients.map(c => ({ mac: c.macAddress?.toLowerCase(), ip: c.ipAddress, name: c.name || c.macAddress, vendor: undefined as string | undefined, lastSeen: c.connectedAt ? new Date(c.connectedAt).getTime() / 1000 : undefined })),
+        ...devices.map(d => ({ mac: d.macAddress?.toLowerCase(), ip: d.ipAddress, name: d.name || d.model || d.macAddress, vendor: d.model, lastSeen: undefined as number | undefined })),
       ].filter(e => e.mac)
 
       for (const entry of allEntries) {
@@ -248,25 +177,38 @@ router.post('/sync', async (_req, res) => {
           const ipRecord = entry.ip ? await prisma.iPAddress.findFirst({ where: { address: entry.ip } }) : null
           await prisma.device.upsert({
             where: { macAddress: entry.mac },
-            create: {
-              name: entry.name,
-              macAddress: entry.mac,
-              vendor: entry.vendor ?? null,
-              source: 'UNIFI',
-              lastSeen: entry.lastSeen ? new Date(entry.lastSeen * 1000) : new Date(),
-              ipAddressId: ipRecord?.id ?? null,
-            },
-            update: {
-              name: entry.name,
-              vendor: entry.vendor ?? null,
-              source: 'UNIFI',
-              lastSeen: entry.lastSeen ? new Date(entry.lastSeen * 1000) : new Date(),
-              ...(ipRecord && { ipAddressId: ipRecord.id }),
-            },
+            create: { name: entry.name, macAddress: entry.mac, vendor: entry.vendor ?? null, source: 'UNIFI', lastSeen: entry.lastSeen ? new Date(entry.lastSeen * 1000) : new Date(), ipAddressId: ipRecord?.id ?? null },
+            update: { name: entry.name, vendor: entry.vendor ?? null, source: 'UNIFI', lastSeen: entry.lastSeen ? new Date(entry.lastSeen * 1000) : new Date(), ...(ipRecord && { ipAddressId: ipRecord.id }) },
           })
           results.devices.synced++
         } catch (err: any) {
           results.errors.push(`Device ${entry.mac}: ${err.message}`)
+        }
+      }
+
+      // ── Reconciliation ────────────────────────────────────────────────────────
+      // Mark IPs as AVAILABLE if they had a UniFi device but weren't seen this sync
+      const seenIPArray = Array.from(seenIPSet)
+      for (const networkId of Array.from(prefixToNetworkId.values())) {
+        try {
+          const staleIPs = await prisma.iPAddress.findMany({
+            where: {
+              networkId,
+              status: 'IN_USE',
+              device: { source: 'UNIFI' },
+              NOT: { address: { in: seenIPArray } },
+            },
+            include: { device: true },
+          })
+          for (const ip of staleIPs) {
+            await prisma.iPAddress.update({ where: { id: ip.id }, data: { status: 'AVAILABLE' } })
+            if (ip.device) {
+              await prisma.device.update({ where: { id: ip.device.id }, data: { ipAddressId: null } })
+            }
+            results.reconciled++
+          }
+        } catch (err: any) {
+          results.errors.push(`Reconcile network ${networkId}: ${err.message}`)
         }
       }
     }
@@ -277,7 +219,7 @@ router.post('/sync', async (_req, res) => {
   }
 })
 
-// GET /api/unifi/devices - List all devices synced from UniFi
+// GET /api/unifi/devices
 router.get('/devices', async (_req, res) => {
   try {
     const devices = await prisma.device.findMany({
