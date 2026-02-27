@@ -20,12 +20,12 @@ A self-hosted IP Address Management tool built for homelabs. Track networks, VLA
 The fastest way to run the full stack. No local Node or PostgreSQL required.
 
 ```bash
-git clone https://github.com/abeebe/homelabipam
+git clone https://github.com/abeebe/homeipam>
 cd ipam
 docker-compose up
 ```
 
-The app will be available at **http://localhost:3000**.
+The app will be available at **http://localhost:5173**.
 
 On first start the container automatically runs database migrations before starting the server. Data is persisted in a named Docker volume (`postgres_data`), so `docker-compose down` (without `-v`) keeps your data intact.
 

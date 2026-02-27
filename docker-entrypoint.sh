@@ -2,7 +2,7 @@
 set -e
 
 echo "🗄  Running database migrations..."
-npx prisma migrate deploy --schema=app/prisma/schema.prisma
+npx prisma migrate deploy
 
 echo "🚀 Starting server..."
 exec node dist/server/index.js
