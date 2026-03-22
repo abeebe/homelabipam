@@ -27,7 +27,7 @@ export function createApp() {
   // Serve the client build in production
   const clientDist = path.resolve(__dirname, "../../client-dist")
   app.use(express.static(clientDist))
-  app.get("*", (_req, res, next) => {
+  app.get("/{*path}", (_req, res, next) => {
     if (_req.path.startsWith("/api/")) return next()
     res.sendFile(path.join(clientDist, "index.html"))
   })
