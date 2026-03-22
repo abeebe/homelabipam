@@ -24,7 +24,7 @@ services:
       API_PORT: 3000
       NODE_ENV: production
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]

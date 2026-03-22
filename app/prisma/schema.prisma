@@ -48,6 +48,8 @@ model Device {
   ipAddressId String?  @unique
   ipAddress   IPAddress? @relation(fields: [ipAddressId], references: [id])
 
+  rackItem    RackItem?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -62,6 +64,65 @@ enum DeviceSource {
   MANUAL
   UNIFI
   PROXMOX
+}
+
+enum RackSide {
+  FRONT
+  BACK
+}
+
+enum RackItemType {
+  MOUNTED
+  SHELF
+  SHELF_ITEM
+  ZERO_U
+}
+
+enum HalfWidthPosition {
+  LEFT
+  RIGHT
+}
+
+model Rack {
+  id          String     @id @default(uuid())
+  name        String
+  totalUnits  Int
+  location    String?
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  items       RackItem[]
+}
+
+model RackItem {
+  id                 String            @id @default(uuid())
+  name               String
+  startUnit          Int?
+  unitHeight         Int?              @default(1)
+  side               RackSide?         @default(FRONT)
+  itemType           RackItemType      @default(MOUNTED)
+  color              String            @default("#3b82f6")
+  description        String?
+  fullDepth          Boolean           @default(false)
+  halfWidth          Boolean           @default(false)
+  halfWidthPosition  HalfWidthPosition?
+  serialNumber       String?
+  assetTag           String?
+  purchaseDate       DateTime?
+  warrantyExpiration DateTime?
+
+  rackId             String
+  rack               Rack              @relation(fields: [rackId], references: [id])
+
+  deviceId           String?           @unique
+  device             Device?           @relation(fields: [deviceId], references: [id])
+
+  parentId           String?
+  parent             RackItem?         @relation("ShelfChildren", fields: [parentId], references: [id])
+  children           RackItem[]        @relation("ShelfChildren")
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 }
 
 model Setting {

@@ -31,11 +31,22 @@ On first start the container automatically runs database migrations before start
 
 ### Updating
 
+Pull the latest code, rebuild, and restart. Database migrations run automatically on startup.
+
 ```bash
+./upgrade.sh
+```
+
+Or manually:
+
+```bash
+git pull
 docker-compose down
 docker-compose build --no-cache
-docker-compose up
+docker-compose up -d
 ```
+
+The container entrypoint runs `prisma migrate deploy` before starting the server, so new database tables/columns are applied automatically. Data is preserved in the `postgres_data` volume.
 
 ---
 
@@ -193,6 +204,19 @@ All endpoints are prefixed with `/api/`.
 3. Go to the **Devices** page and click **Sync UniFi** to import clients and networks. Subsequent syncs reconcile IP assignments automatically.
 
 ---
+
+## External Services
+
+| Service | Purpose | Config |
+|---------|---------|--------|
+| **PostgreSQL 16** | Primary database | `DATABASE_URL` env var · Docker: `postgres:16-alpine` with `postgres_data` volume |
+| **UniFi Controller** | Network device auto-discovery | `UNIFI_URL` + `UNIFI_API_KEY` env vars or Settings UI · API: Network Integration v1 |
+| **Proxmox** | VM discovery *(planned)* | `PROXMOX_URL` + `PROXMOX_TOKEN_ID` + `PROXMOX_TOKEN_SECRET` |
+| **Pi-hole** | DNS/DHCP discovery *(planned)* | `PIHOLE_URL` + `PIHOLE_API_KEY` |
+| **AdGuard Home** | DNS filtering *(planned)* | `ADGUARD_URL` + `ADGUARD_PASSWORD` |
+| **Portainer** | Container IP discovery *(planned)* | `PORTAINER_URL` + `PORTAINER_API_KEY` |
+
+All integration credentials can be configured via the Settings UI (stored encrypted in the database) or via environment variables. Sensitive values are masked in API responses.
 
 ## License
 

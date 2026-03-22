@@ -1,11 +1,11 @@
 import { prisma } from '../prisma'
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'SYNC' | 'POPULATE'
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'SYNC' | 'POPULATE' | 'MOVE'
 export type AuditSource = 'USER' | 'SYSTEM'
 
 export interface AuditParams {
   action: AuditAction
-  entityType: 'Network' | 'IPAddress' | 'Device' | 'Setting'
+  entityType: 'Network' | 'IPAddress' | 'Device' | 'Setting' | 'Rack' | 'RackItem'
   entityId?: string
   entityName?: string
   changes?: Record<string, unknown>

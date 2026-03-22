@@ -36,6 +36,10 @@ export default function Layout({ children }: LayoutProps) {
             <span className="nav-icon">▣</span>
             Devices
           </NavLink>
+          <NavLink to="/racks" className={navClass}>
+            <span className="nav-icon">▥</span>
+            Racks
+          </NavLink>
 
           <span className="sidebar-section">System</span>
           <NavLink to="/auditlog" className={navClass}>
