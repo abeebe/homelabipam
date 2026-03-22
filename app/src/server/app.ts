@@ -1,5 +1,6 @@
 import express from "express"
 import cors from "cors"
+import path from "path"
 
 import healthRoutes from "./routes/health"
 import networksRoutes from "./routes/networks"
@@ -22,6 +23,14 @@ export function createApp() {
   app.use("/api/settings", settingsRoutes)
   app.use("/api/auditlog", auditLogRoutes)
   app.use("/api/racks", racksRoutes)
+
+  // Serve the client build in production
+  const clientDist = path.resolve(__dirname, "../../client-dist")
+  app.use(express.static(clientDist))
+  app.get("*", (_req, res, next) => {
+    if (_req.path.startsWith("/api/")) return next()
+    res.sendFile(path.join(clientDist, "index.html"))
+  })
 
   // Error handling middleware
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
