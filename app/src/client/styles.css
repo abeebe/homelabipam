@@ -1197,6 +1197,404 @@ body {
 
 /* ─── Responsive ──────────────────────────────────── */
 
+/* ─── Data table (used by RackList, search results) ── */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.data-table thead {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table th {
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: #fafbfd; }
+
+/* ─── Secondary button ───────────────────────────── */
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ─── Rack pages ─────────────────────────────────── */
+
+.page-rack-list .page-header,
+.page-rack-detail .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.page-rack-detail .page-header > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rack-size {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.rack-location {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Asset search bar ── */
+
+.asset-search {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.asset-search input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--surface);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.asset-search input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgb(99 102 241 / 0.12);
+}
+
+.search-results {
+  margin-bottom: 24px;
+}
+
+.search-results h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+
+/* ── Utilization text ── */
+
+.utilization {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* ── Rack utilization bar ── */
+
+.rack-utilization-bar {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Front/back toggle ── */
+
+.rack-view-toggle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+/* ── Rack layout: diagram + sidebar ── */
+
+.rack-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.rack-diagram-container {
+  flex: 0 0 auto;
+}
+
+.rack-sidebar {
+  flex: 1;
+  min-width: 280px;
+  max-width: 420px;
+}
+
+.sidebar-hint {
+  font-size: 13px;
+  color: var(--text-subtle);
+  padding: 20px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* ── Side rails section ── */
+
+.side-rails {
+  margin-top: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.side-rails h4 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.side-rail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.12s;
+}
+
+.side-rail-item:hover {
+  background: var(--bg);
+}
+
+.side-rail-name {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.side-rail-device {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ── Color dot (shared) ── */
+
+.color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Item detail panel ── */
+
+.item-detail-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.item-detail-panel h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  color: var(--text);
+}
+
+.detail-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.detail-row:last-of-type {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Shelf children in detail panel ── */
+
+.shelf-children {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.shelf-children h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.shelf-child-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.12s;
+}
+
+.shelf-child-row:hover {
+  background: var(--bg);
+}
+
+.shelf-child-device {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ── Color picker ── */
+
+.color-picker {
+  margin-bottom: 4px;
+}
+
+.color-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.15s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text);
+}
+
+.color-custom {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+}
+
+/* ── Asset tracking fields ── */
+
+.asset-fields {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.asset-fields h4 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+/* ── Warranty indicators ── */
+
+.warranty-indicator {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.warranty-valid {
+  color: #16a34a;
+}
+
+.warranty-expiring {
+  color: #ca8a04;
+}
+
+.warranty-expired {
+  color: #dc2626;
+}
+
+/* ── SVG rack diagram overrides ── */
+
+.rack-diagram-svg {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
 @media (max-width: 768px) {
   .sidebar {
     display: none;
@@ -1225,5 +1623,19 @@ body {
   .table th,
   .table td {
     padding: 8px 10px;
+  }
+
+  .rack-layout {
+    flex-direction: column;
+  }
+
+  .rack-sidebar {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .rack-diagram-container {
+    width: 100%;
+    overflow-x: auto;
   }
 }

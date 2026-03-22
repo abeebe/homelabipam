@@ -1,4 +1,4 @@
-import { Network, IPAddress, Device, AuditLogEntry } from './types'
+import { Network, IPAddress, Device, AuditLogEntry, Rack, RackItem, RackSide, HalfWidthPosition } from './types'
 
 const API_BASE = '/api'
 
@@ -91,6 +91,30 @@ export const auditLogAPI = {
       `/auditlog?${qs.toString()}`
     )
   },
+}
+
+// Racks API
+export const racksAPI = {
+  getAll: () => request<Rack[]>('/racks'),
+  getById: (id: string) => request<Rack>(`/racks/${id}`),
+  create: (data: { name: string; totalUnits: number; location?: string; description?: string }) =>
+    request<Rack>('/racks', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<Rack>) =>
+    request<Rack>(`/racks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request<void>(`/racks/${id}`, { method: 'DELETE' }),
+  addItem: (rackId: string, data: Partial<RackItem>) =>
+    request<RackItem>(`/racks/${rackId}/items`, { method: 'POST', body: JSON.stringify(data) }),
+  addShelfItem: (rackId: string, shelfId: string, data: Partial<RackItem>) =>
+    request<RackItem>(`/racks/${rackId}/items/${shelfId}/children`, { method: 'POST', body: JSON.stringify(data) }),
+  updateItem: (rackId: string, itemId: string, data: Partial<RackItem>) =>
+    request<RackItem>(`/racks/${rackId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  moveItem: (rackId: string, itemId: string, data: { startUnit: number; side: RackSide; halfWidthPosition?: HalfWidthPosition }) =>
+    request<RackItem>(`/racks/${rackId}/items/${itemId}/move`, { method: 'PUT', body: JSON.stringify(data) }),
+  removeItem: (rackId: string, itemId: string) =>
+    request<void>(`/racks/${rackId}/items/${itemId}`, { method: 'DELETE' }),
+  searchAssets: (query: string) =>
+    request<RackItem[]>(`/racks/search/assets?q=${encodeURIComponent(query)}`),
 }
 
 export { APIError }
