@@ -25,7 +25,9 @@ export function createApp() {
   app.use("/api/racks", racksRoutes)
 
   // Serve the client build in production
-  const clientDist = path.resolve(__dirname, "../../client-dist")
+  // In Docker: WORKDIR=/app, server runs from /app/dist/server/, client builds to /app/app/client-dist/
+  // Use process.cwd() which is /app in Docker
+  const clientDist = path.resolve(process.cwd(), "app/client-dist")
   app.use(express.static(clientDist))
   app.get("/{*path}", (_req, res, next) => {
     if (_req.path.startsWith("/api/")) return next()
