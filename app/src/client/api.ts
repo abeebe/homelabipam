@@ -72,6 +72,23 @@ export const unifiAPI = {
   getDevices: () => request<Device[]>('/unifi/devices'),
 }
 
+// Proxmox API
+export const proxmoxAPI = {
+  getStatus: () => request<{ success: boolean; version?: string; error?: string }>('/proxmox/status'),
+  sync: () => request<{
+    ok: boolean
+    message: string
+    nodesCreated: number
+    nodesUpdated: number
+    vmsCreated: number
+    vmsUpdated: number
+    ipsLinked: number
+  }>('/proxmox/sync', { method: 'POST' }),
+  getDevices: () => request<Device[]>('/proxmox/devices'),
+  getNodes: () => request<{ node: string; status: string; ip?: string }[]>('/proxmox/nodes'),
+  getNodeVMs: (node: string) => request<{ vmid: number; name: string; status: string; type: string }[]>(`/proxmox/nodes/${node}/vms`),
+}
+
 // Settings API
 export const settingsAPI = {
   getAll: () => request<Record<string, string>>('/settings'),

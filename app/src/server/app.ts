@@ -9,6 +9,7 @@ import unifiRoutes from "./routes/unifi"
 import settingsRoutes from "./routes/settings"
 import auditLogRoutes from "./routes/auditlog"
 import racksRoutes from "./routes/racks"
+import proxmoxRoutes from "./routes/proxmox"
 
 export function createApp() {
   const app = express()
@@ -23,6 +24,7 @@ export function createApp() {
   app.use("/api/settings", settingsRoutes)
   app.use("/api/auditlog", auditLogRoutes)
   app.use("/api/racks", racksRoutes)
+  app.use("/api/proxmox", proxmoxRoutes)
 
   // Serve the client build in production
   // In Docker: WORKDIR=/app, server runs from /app/dist/server/, client builds to /app/app/client-dist/

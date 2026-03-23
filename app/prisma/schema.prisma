@@ -37,13 +37,16 @@ model IPAddress {
 }
 
 model Device {
-  id         String   @id @default(uuid())
-  name       String
-  macAddress String?  @unique
-  hostname   String?
-  vendor     String?
-  source     DeviceSource @default(MANUAL)
-  lastSeen   DateTime?
+  id              String   @id @default(uuid())
+  name            String
+  macAddress      String?  @unique
+  hostname        String?
+  vendor          String?
+  source          DeviceSource @default(MANUAL)
+  lastSeen        DateTime?
+  proxmoxVmId     Int?
+  proxmoxNodeName String?
+  proxmoxType     String?
 
   ipAddressId String?  @unique
   ipAddress   IPAddress? @relation(fields: [ipAddressId], references: [id])
