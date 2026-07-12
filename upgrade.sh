@@ -1,4 +1,5 @@
 #!/bin/sh
+# upgrade.sh: pulls latest code, rebuilds Docker images with no cache, and restarts the stack (migrations run automatically on startup).
 set -e
 
 echo "📥 Pulling latest code..."
